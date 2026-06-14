@@ -127,6 +127,7 @@
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
                         
                         <!-- Bluetooth Icon -->
@@ -149,6 +150,27 @@
                                        Foreground="{StaticResource TextSecondaryBrush}"
                                        Margin="0,2,0,0"/>
                         </StackPanel>
+                        
+                        <Button x:Name="DefaultDeviceButton" Grid.Column="2"
+                                Command="{Binding ToggleDefaultDeviceCommand}"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Cursor="Hand"
+                                Padding="6"
+                                VerticalAlignment="Center">
+                            <TextBlock x:Name="DefaultDeviceStar" FontSize="18" Foreground="{StaticResource PrimaryBrush}">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Text" Value="☆"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsDefaultDevice}" Value="True">
+                                                <Setter Property="Text" Value="★"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Button>
                     </Grid>
                 </Border>
                 
@@ -221,6 +243,11 @@
                                                                        FontSize="10" 
                                                                        Foreground="{StaticResource TextSecondaryBrush}"
                                                                        Margin="0,1,0,0"/>
+                                                            <TextBlock Text="{Binding LastConnectedDisplay}" 
+                                                                       FontSize="10" 
+                                                                       Foreground="{StaticResource TextSecondaryBrush}"
+                                                                       Margin="0,1,0,0"
+                                                                       Opacity="0.6"/>
                                                         </StackPanel>
                                                     </Grid>
                                                 </Border>

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 
@@ -48,6 +49,14 @@ public class AppSettings
     /// Last connected device name for display.
     /// </summary>
     public string? LastDeviceName { get; set; }
+    
+    public string? DefaultDeviceId { get; set; }
+    
+    public string? DefaultDeviceName { get; set; }
+    
+    public DateTime LastConnectedTime { get; set; }
+    
+    public Dictionary<string, DateTime> DeviceLastConnectedTimes { get; set; } = new();
     
     /// <summary>
     /// Show notification when connection state changes.

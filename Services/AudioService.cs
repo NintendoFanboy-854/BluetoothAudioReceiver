@@ -1,160 +1,159 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Windows.Foundation;
 using Windows.Media.Audio;
 
 namespace BluetoothAudioReceiver.Services;
 
-/// <summary>
-/// Service for managing Bluetooth audio playback connections (A2DP Sink).
-/// Uses AudioPlaybackConnection API for efficient, event-driven audio streaming.
-/// </summary>
 public class AudioService : IDisposable
 {
-    private AudioPlaybackConnection? _audioConnection;
-    private string? _currentDeviceId;
+    private readonly Dictionary<string, AudioPlaybackConnection> _enabledConnections = new();
+    private AudioPlaybackConnection? _activeConnection;
+    private string? _activeDeviceId;
+    private readonly object _lock = new();
     private const int MaxRetries = 3;
     private const int RetryDelayMs = 500;
-    
+
     public event EventHandler<bool>? ConnectionStateChanged;
     public event EventHandler<string>? StreamingStateChanged;
     public event EventHandler<string>? ErrorOccurred;
-    
-    public bool IsConnected => _audioConnection != null;
+
+    public bool IsConnected => _activeConnection != null;
     public bool IsStreaming { get; private set; }
-    public string? CurrentDeviceId => _currentDeviceId;
-    
-    /// <summary>
-    /// Opens an audio playback connection to the specified Bluetooth device.
-    /// Includes retry logic for more reliable connections.
-    /// </summary>
-    public async Task<bool> OpenConnectionAsync(string deviceId)
+    public string? ActiveDeviceId => _activeDeviceId;
+
+    public bool Enable(string deviceId)
     {
+        lock (_lock)
+        {
+            if (_enabledConnections.ContainsKey(deviceId))
+                return true;
+        }
+
+        var connection = AudioPlaybackConnection.TryCreateFromId(deviceId);
+        if (connection == null)
+            return false;
+
+        connection.StateChanged += OnConnectionStateChanged;
+
         try
         {
-            // Close any existing connection first
-            await CloseConnectionAsync();
-            
-            // Retry logic for more reliable connections
-            for (int attempt = 1; attempt <= MaxRetries; attempt++)
-            {
-                try
-                {
-                    var result = await TryOpenConnectionAsync(deviceId, attempt);
-                    if (result)
-                    {
-                        return true;
-                    }
-                    
-                    if (attempt < MaxRetries)
-                    {
-                        await Task.Delay(RetryDelayMs);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    if (attempt == MaxRetries)
-                    {
-                        ErrorOccurred?.Invoke(this, $"Error opening connection: {ex.Message}");
-                        return false;
-                    }
-                    await Task.Delay(RetryDelayMs);
-                }
-            }
-            
-            ErrorOccurred?.Invoke(this, "Could not establish connection after multiple attempts.");
-            return false;
+            connection.Start();
         }
         catch (Exception ex)
         {
-            ErrorOccurred?.Invoke(this, $"Error opening connection: {ex.Message}");
+            connection.StateChanged -= OnConnectionStateChanged;
+            ErrorOccurred?.Invoke(this, $"Failed to enable device: {ex.Message}");
             return false;
         }
-    }
-    
-    private async Task<bool> TryOpenConnectionAsync(string deviceId, int attempt)
-    {
-        // Create audio playback connection
-        _audioConnection = AudioPlaybackConnection.TryCreateFromId(deviceId);
-        
-        if (_audioConnection == null)
+
+        lock (_lock)
         {
-            if (attempt == MaxRetries)
-            {
-                ErrorOccurred?.Invoke(this, "Could not create audio connection. Device may not support A2DP.");
-            }
-            return false;
+            _enabledConnections[deviceId] = connection;
         }
-        
-        _currentDeviceId = deviceId;
-        
-        // Subscribe to state changes (event-driven, no polling!)
-        _audioConnection.StateChanged += OnConnectionStateChanged;
-        
-        // Start the audio connection
-        await _audioConnection.StartAsync();
-        
-        // Open the connection to begin receiving audio
-        var result = await _audioConnection.OpenAsync();
-        
-        if (result.Status != AudioPlaybackConnectionOpenResultStatus.Success)
-        {
-            // Extended error info
-            var extendedError = result.ExtendedError?.Message ?? "No extended error";
-            
-            if (attempt == MaxRetries)
-            {
-                ErrorOccurred?.Invoke(this, $"Failed to open audio connection: {result.Status}");
-            }
-            
-            // Clean up failed connection
-            _audioConnection.StateChanged -= OnConnectionStateChanged;
-            _audioConnection.Dispose();
-            _audioConnection = null;
-            return false;
-        }
-        
-        // Wait for the audio subsystem to initialize and reach the Opened state
-        // This is faster than a fixed delay if the state updates quickly
-        await WaitForStateAsync(_audioConnection, AudioPlaybackConnectionState.Opened, 500);
-        
-        // Force a state update to ensure we're in the right state
-        IsStreaming = _audioConnection.State == AudioPlaybackConnectionState.Opened;
-        StreamingStateChanged?.Invoke(this, IsStreaming ? "Streaming" : "Connected");
-        
-        ConnectionStateChanged?.Invoke(this, true);
         return true;
     }
 
-    /// <summary>
-    /// Waits for the audio connection to reach a specific state with a timeout.
-    /// </summary>
+    public async Task<bool> OpenAsync(string deviceId)
+    {
+        AudioPlaybackConnection? connection;
+        lock (_lock)
+        {
+            if (!_enabledConnections.TryGetValue(deviceId, out connection))
+                return false;
+        }
+
+        await CloseAsync();
+
+        for (int attempt = 1; attempt <= MaxRetries; attempt++)
+        {
+            try
+            {
+                var result = await connection.OpenAsync();
+                if (result.Status == AudioPlaybackConnectionOpenResultStatus.Success)
+                {
+                    await WaitForStateAsync(connection, AudioPlaybackConnectionState.Opened, 500);
+
+                    _activeConnection = connection;
+                    _activeDeviceId = deviceId;
+                    IsStreaming = connection.State == AudioPlaybackConnectionState.Opened;
+                    StreamingStateChanged?.Invoke(this, IsStreaming ? "Streaming" : "Connected");
+                    ConnectionStateChanged?.Invoke(this, true);
+                    return true;
+                }
+
+                if (attempt < MaxRetries)
+                    await Task.Delay(RetryDelayMs);
+            }
+            catch (Exception ex)
+            {
+                if (attempt == MaxRetries)
+                {
+                    ErrorOccurred?.Invoke(this, ex.Message);
+                    return false;
+                }
+                await Task.Delay(RetryDelayMs);
+            }
+        }
+
+        ErrorOccurred?.Invoke(this, "Could not establish connection after multiple attempts.");
+        return false;
+    }
+
+    public async Task CloseAsync()
+    {
+        AudioPlaybackConnection? old;
+        bool wasConnected;
+        lock (_lock)
+        {
+            old = _activeConnection;
+            wasConnected = old != null;
+            _activeConnection = null;
+            var deviceId = _activeDeviceId;
+            _activeDeviceId = null;
+            if (deviceId != null)
+                _enabledConnections.Remove(deviceId);
+        }
+
+        if (old != null)
+        {
+            try
+            {
+                old.StateChanged -= OnConnectionStateChanged;
+                old.Dispose();
+            }
+            catch
+            {
+            }
+        }
+
+        IsStreaming = false;
+        if (wasConnected)
+            ConnectionStateChanged?.Invoke(this, false);
+
+        await Task.CompletedTask;
+    }
+
     private async Task WaitForStateAsync(AudioPlaybackConnection connection, AudioPlaybackConnectionState targetState, int timeoutMs)
     {
         if (connection.State == targetState)
-        {
             return;
-        }
 
         var tcs = new TaskCompletionSource<bool>();
 
         TypedEventHandler<AudioPlaybackConnection, object> handler = (sender, args) =>
         {
             if (sender.State == targetState)
-            {
                 tcs.TrySetResult(true);
-            }
         };
 
         connection.StateChanged += handler;
 
         try
         {
-            // Check again in case it changed before/while we subscribed
             if (connection.State == targetState)
-            {
                 return;
-            }
 
             var timeoutTask = Task.Delay(timeoutMs);
             await Task.WhenAny(tcs.Task, timeoutTask);
@@ -164,58 +163,55 @@ public class AudioService : IDisposable
             connection.StateChanged -= handler;
         }
     }
-    
-    /// <summary>
-    /// Closes the current audio playback connection.
-    /// </summary>
-    public async Task CloseConnectionAsync()
-    {
-        if (_audioConnection != null)
-        {
-            _audioConnection.StateChanged -= OnConnectionStateChanged;
-            _audioConnection.Dispose();
-            _audioConnection = null;
-            _currentDeviceId = null;
-            IsStreaming = false;
-            
-            ConnectionStateChanged?.Invoke(this, false);
-        }
-        
-        await Task.CompletedTask;
-    }
-    
+
     private void OnConnectionStateChanged(AudioPlaybackConnection sender, object args)
     {
-        // Update streaming state based on connection state
         var wasStreaming = IsStreaming;
         IsStreaming = sender.State == AudioPlaybackConnectionState.Opened;
-        
+
         if (wasStreaming != IsStreaming)
         {
             StreamingStateChanged?.Invoke(this, IsStreaming ? "Streaming" : "Connected");
         }
+
+        if (sender.State == AudioPlaybackConnectionState.Closed && sender == _activeConnection)
+        {
+            IsStreaming = false;
+            ConnectionStateChanged?.Invoke(this, false);
+        }
     }
-    
+
     public void Dispose()
     {
-        // Clean up synchronously to ensure resources are released before app exit
-        if (_audioConnection != null)
+        lock (_lock)
         {
-            try
+            if (_activeConnection != null)
             {
-                _audioConnection.StateChanged -= OnConnectionStateChanged;
-                _audioConnection.Dispose();
+                try
+                {
+                    _activeConnection.StateChanged -= OnConnectionStateChanged;
+                    _activeConnection.Dispose();
+                }
+                catch
+                {
+                }
+                _activeConnection = null;
             }
-            catch
+
+            foreach (var kv in _enabledConnections)
             {
-                // Ignore errors during disposal
+                try
+                {
+                    kv.Value.StateChanged -= OnConnectionStateChanged;
+                    kv.Value.Dispose();
+                }
+                catch
+                {
+                }
             }
-            finally
-            {
-                _audioConnection = null;
-            }
+            _enabledConnections.Clear();
         }
-        _currentDeviceId = null;
+        _activeDeviceId = null;
         IsStreaming = false;
     }
 }

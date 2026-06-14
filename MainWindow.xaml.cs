@@ -28,7 +28,7 @@ public partial class MainWindow : Window
         
         LocalizationService.Instance.CurrentLanguage = _settings.Language;
         
-        _viewModel = new MainViewModel();
+        _viewModel = new MainViewModel(_settings);
         DataContext = _viewModel;
         
         _trayService = new TrayIconService(this, _settings);
@@ -82,6 +82,16 @@ public partial class MainWindow : Window
         DisconnectButton.Content = loc.Get("Disconnect");
         
         RebindSelectedDeviceFallbacks(loc);
+        
+        UpdateDefaultDeviceTooltip();
+    }
+    
+    private void UpdateDefaultDeviceTooltip()
+    {
+        var loc = LocalizationService.Instance;
+        var isDefault = _viewModel?.IsDefaultDevice ?? false;
+        DefaultDeviceButton.ToolTip = isDefault ? loc.Get("RemoveDefault") : loc.Get("SetDefault");
+        AutomationProperties.SetName(DefaultDeviceButton, isDefault ? loc.Get("RemoveDefault") : loc.Get("SetDefault"));
     }
     
     private void RebindSelectedDeviceFallbacks(LocalizationService loc)
@@ -147,14 +157,11 @@ public partial class MainWindow : Window
             {
                 _trayService.ShowNotification(LocalizationService.Instance.Get("Connected"), 
                     $"{LocalizationService.Instance.Get("AudioConnectionTo")} {_viewModel.SelectedDevice?.Name} {LocalizationService.Instance.Get("Established")}");
-                
-                if (_viewModel.SelectedDevice != null)
-                {
-                    _settings.LastDeviceId = _viewModel.SelectedDevice.Id;
-                    _settings.LastDeviceName = _viewModel.SelectedDevice.Name;
-                    _settings.Save();
-                }
             }
+        }
+        else if (e.PropertyName == nameof(MainViewModel.IsDefaultDevice))
+        {
+            UpdateDefaultDeviceTooltip();
         }
     }
     
