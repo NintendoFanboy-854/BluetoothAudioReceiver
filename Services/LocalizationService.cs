@@ -31,21 +31,8 @@ public class LocalizationService : INotifyPropertyChanged
 
     public static readonly Dictionary<string, string> AvailableLanguages = new()
     {
-        { "en", "English" },
-        { "de", "Deutsch" },
-        { "es", "Español" },
-        { "fr", "Français" },
-        { "it", "Italiano" },
-        { "pt", "Português" },
-        { "nl", "Nederlands" },
-        { "pl", "Polski" },
-        { "ru", "Русский" },
-        { "uk", "Українська" },
-        { "tr", "Türkçe" },
-        { "ja", "日本語" },
-        { "ko", "한국어" },
         { "zh", "中文" },
-        { "ar", "العربية" }
+        { "en", "English" }
     };
     
     // Helper to get translation dictionary (cached or loaded on demand)

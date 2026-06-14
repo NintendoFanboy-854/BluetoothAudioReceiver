@@ -66,7 +66,7 @@ public class AppSettings
     /// <summary>
     /// UI language code (e.g., "en", "de", "es").
     /// </summary>
-    public string Language { get; set; } = "en";
+    public string Language { get; set; } = "zh";
     
     /// <summary>
     /// Loads settings from disk, or returns defaults if not found.
