@@ -27,20 +27,20 @@
                 <Grid>
                     <StackPanel Orientation="Horizontal" Margin="14,0,0,0" VerticalAlignment="Center">
                         <TextBlock Text="⚙️" FontSize="14" Margin="0,0,8,0"/>
-                        <TextBlock Text="Einstellungen" 
+                        <TextBlock x:Name="SettingsTitleBarText" Text="Settings" 
                                    FontSize="13" 
                                    FontWeight="SemiBold"
                                    Foreground="{StaticResource TextPrimaryBrush}"/>
                     </StackPanel>
                     
-                    <Button Content="✕" 
+                    <Button x:Name="SettingsCloseButton" Content="✕" 
                             Click="CancelButton_Click"
                             Style="{StaticResource CloseButtonStyle}"
                             HorizontalAlignment="Right"
                             FontSize="11"
                             Foreground="{StaticResource TextSecondaryBrush}"
-                            ToolTip="Schließen"
-                            AutomationProperties.Name="Schließen"/>
+                            ToolTip="Close"
+                            AutomationProperties.Name="Close"/>
                 </Grid>
             </Border>
             
@@ -108,9 +108,9 @@
                                       Margin="0,0,0,14"/>
                             
                             <CheckBox x:Name="ShowNotificationsCheckBox" 
-                                      Content="Show notifications"
-                                      IsChecked="{Binding ShowNotifications}"
-                                      Style="{StaticResource ToggleSwitchStyle}"/>
+                                       Content="Show notifications"
+                                       IsChecked="{Binding ShowNotifications}"
+                                       Style="{StaticResource ToggleSwitchStyle}"/>
                         </StackPanel>
                     </Border>
                     

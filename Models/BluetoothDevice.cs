@@ -1,10 +1,9 @@
+using System.ComponentModel;
 using CommunityToolkit.Mvvm.ComponentModel;
+using BluetoothAudioReceiver.Services;
 
 namespace BluetoothAudioReceiver.Models;
 
-/// <summary>
-/// Represents a paired Bluetooth device that can be used for audio playback.
-/// </summary>
 public partial class BluetoothDevice : ObservableObject
 {
     [ObservableProperty]
@@ -21,5 +20,22 @@ public partial class BluetoothDevice : ObservableObject
     [NotifyPropertyChangedFor(nameof(DisplayStatus))]
     private bool _isAudioStreaming;
 
-    public string DisplayStatus => IsAudioStreaming ? "Streaming" : (IsConnected ? "Connected" : "Paired");
+    public string DisplayStatus => IsAudioStreaming
+        ? LocalizationService.Instance.Get("Streaming")
+        : (IsConnected
+            ? LocalizationService.Instance.Get("Connected")
+            : LocalizationService.Instance.Get("Paired"));
+
+    public BluetoothDevice()
+    {
+        LocalizationService.Instance.PropertyChanged += OnLocalizationChanged;
+    }
+
+    private void OnLocalizationChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == "Item[]")
+        {
+            OnPropertyChanged(nameof(DisplayStatus));
+        }
+    }
 }

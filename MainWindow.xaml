@@ -37,7 +37,7 @@
                                 </Canvas>
                             </Viewbox>
                         </Border>
-                        <TextBlock Text="Audio Receiver" 
+                        <TextBlock x:Name="TitleBarText" Text="Audio Receiver" 
                                    FontSize="13" 
                                    FontWeight="SemiBold"
                                    Foreground="{StaticResource TextPrimaryBrush}"
@@ -47,20 +47,20 @@
                     
                     <!-- Window Buttons -->
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                        <Button Content="─" 
+                        <Button x:Name="MinimizeButton" Content="─" 
                                 Click="MinimizeButton_Click"
                                 Style="{StaticResource TitleBarButtonStyle}"
                                 FontSize="11"
                                 Foreground="{StaticResource TextSecondaryBrush}"
-                                ToolTip="Minimieren"
-                                AutomationProperties.Name="Minimieren"/>
-                        <Button Content="✕" 
+                                ToolTip="Minimize"
+                                AutomationProperties.Name="Minimize"/>
+                        <Button x:Name="CloseButton" Content="✕" 
                                 Click="CloseButton_Click"
                                 Style="{StaticResource CloseButtonStyle}"
                                 FontSize="11"
                                 Foreground="{StaticResource TextSecondaryBrush}"
-                                ToolTip="Schließen"
-                                AutomationProperties.Name="Schließen"/>
+                                ToolTip="Close"
+                                AutomationProperties.Name="Close"/>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -97,8 +97,8 @@
                                 Background="Transparent"
                                 BorderThickness="0"
                                 Cursor="Hand"
-                                ToolTip="Hilfe"
-                                AutomationProperties.Name="Hilfe"
+                                ToolTip="Help"
+                                AutomationProperties.Name="Help"
                                 Padding="6"
                                 Margin="0,0,4,0">
                             <TextBlock Text="❓" FontSize="14" Foreground="{StaticResource TextSecondaryBrush}"/>
@@ -108,8 +108,8 @@
                                 Background="Transparent"
                                 BorderThickness="0"
                                 Cursor="Hand"
-                                ToolTip="Einstellungen"
-                                AutomationProperties.Name="Einstellungen"
+                                ToolTip="Settings"
+                                AutomationProperties.Name="Settings"
                                 Padding="6">
                             <Viewbox Width="16" Height="16">
                                 <Canvas Width="24" Height="24">
@@ -140,11 +140,11 @@
                         </Border>
                         
                         <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0,0,0">
-                            <TextBlock Text="{Binding SelectedDevice.Name, FallbackValue='Kein Gerät ausgewählt'}" 
+                            <TextBlock x:Name="SelectedDeviceName" Text="{Binding SelectedDevice.Name, FallbackValue='No device selected'}" 
                                        FontSize="14" 
                                        FontWeight="Medium"
                                        Foreground="{StaticResource TextPrimaryBrush}"/>
-                            <TextBlock Text="{Binding SelectedDevice.DisplayStatus, FallbackValue='Wähle ein Gerät aus der Liste'}" 
+                            <TextBlock x:Name="SelectedDeviceStatus" Text="{Binding SelectedDevice.DisplayStatus, FallbackValue='Select a device from the list'}" 
                                        FontSize="11" 
                                        Foreground="{StaticResource TextSecondaryBrush}"
                                        Margin="0,2,0,0"/>
@@ -162,8 +162,8 @@
                         
                         <!-- List Header -->
                         <Grid Margin="4,0,4,10">
-                            <TextBlock Text="GERÄTE" Style="{StaticResource SectionHeaderStyle}" Margin="0"/>
-                            <Button Content="⟳" 
+                            <TextBlock x:Name="DevicesHeader" Text="DEVICES" Style="{StaticResource SectionHeaderStyle}" Margin="0"/>
+                            <Button x:Name="RefreshButton" Content="⟳" 
                                     Command="{Binding RefreshDevicesCommand}"
                                     HorizontalAlignment="Right"
                                     FontSize="14"
@@ -172,8 +172,8 @@
                                     Foreground="{StaticResource TextSecondaryBrush}"
                                     BorderThickness="0"
                                     Cursor="Hand"
-                                    ToolTip="Aktualisieren"
-                                    AutomationProperties.Name="Geräte aktualisieren"/>
+                                    ToolTip="Refresh"
+                                    AutomationProperties.Name="Refresh devices"/>
                         </Grid>
                         
                         <!-- Device ListView -->
@@ -255,8 +255,8 @@
                         </ListBox>
                         
                         <!-- Empty State -->
-                        <TextBlock Grid.Row="1"
-                                   Text="Keine Geräte gefunden.&#x0a;Kopple dein Handy in den Windows-Einstellungen."
+                        <TextBlock x:Name="EmptyStateText" Grid.Row="1"
+                                   Text="No devices found.&#x0a;Pair your phone in Windows settings."
                                    TextAlignment="Center"
                                    FontSize="12"
                                    Foreground="{StaticResource TextSecondaryBrush}"
@@ -308,7 +308,7 @@
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
                     
-                    <Button Content="Verbinden" 
+                    <Button x:Name="ConnectButton" Content="Connect" 
                             Command="{Binding OpenConnectionCommand}"
                             Style="{StaticResource PrimaryButtonStyle}">
                         <Button.IsEnabled>
@@ -323,8 +323,8 @@
                         </Button.IsEnabled>
                     </Button>
                     
-                    <Button Grid.Column="2"
-                            Content="Trennen" 
+                    <Button x:Name="DisconnectButton" Grid.Column="2"
+                            Content="Disconnect" 
                             Command="{Binding CloseConnectionCommand}"
                             Style="{StaticResource SecondaryButtonStyle}"
                             IsEnabled="{Binding IsConnected}"/>

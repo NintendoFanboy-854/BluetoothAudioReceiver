@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Data;
@@ -10,16 +11,13 @@ using BluetoothAudioReceiver.Services;
 
 namespace BluetoothAudioReceiver.ViewModels;
 
-/// <summary>
-/// Main ViewModel for the Bluetooth Audio Receiver application.
-/// Uses MVVM pattern with CommunityToolkit.Mvvm for clean separation.
-/// </summary>
 public partial class MainViewModel : ObservableObject, IDisposable
 {
     private readonly BluetoothService _bluetoothService;
     private readonly AudioService _audioService;
     private readonly object _devicesLock = new();
     private bool _isEnumerating = true;
+    private string _streamingState = "";
     
     [ObservableProperty]
     private ObservableCollection<BluetoothDevice> _devices = new();
@@ -47,21 +45,61 @@ public partial class MainViewModel : ObservableObject, IDisposable
         _bluetoothService = new BluetoothService();
         _audioService = new AudioService();
         
-        // Enable multi-threaded access to the collection
         BindingOperations.EnableCollectionSynchronization(Devices, _devicesLock);
 
-        // Wire up events (event-driven, no polling!)
         _bluetoothService.DeviceAdded += OnDeviceAdded;
         _bluetoothService.DeviceRemoved += OnDeviceRemoved;
         _bluetoothService.EnumerationCompleted += OnEnumerationCompleted;
-        // DeviceUpdated is handled automatically via INotifyPropertyChanged on the shared BluetoothDevice objects
         
         _audioService.ConnectionStateChanged += OnAudioConnectionStateChanged;
         _audioService.StreamingStateChanged += OnStreamingStateChanged;
         _audioService.ErrorOccurred += OnAudioError;
+
+        LocalizationService.Instance.PropertyChanged += OnLocalizationChanged;
         
-        // Start discovering devices
         _bluetoothService.StartWatching();
+    }
+    
+    private void OnLocalizationChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == "Item[]")
+        {
+            RefreshLocalization();
+        }
+    }
+    
+    public void RefreshLocalization()
+    {
+        if (IsConnected)
+        {
+            if (_streamingState == "Streaming")
+            {
+                Status = LocalizationService.Instance.Get("Streaming");
+                StatusDetail = string.Format(LocalizationService.Instance.Get("ReceivingAudioFrom"), SelectedDevice?.Name);
+            }
+            else
+            {
+                Status = LocalizationService.Instance.Get("Connected");
+                StatusDetail = string.Format(LocalizationService.Instance.Get("AudioReadyFrom"), SelectedDevice?.Name);
+            }
+        }
+        else if (IsConnecting)
+        {
+            Status = LocalizationService.Instance.Get("Connecting");
+            StatusDetail = string.Format(LocalizationService.Instance.Get("OpeningConnectionTo"), SelectedDevice?.Name);
+        }
+        else
+        {
+            Status = LocalizationService.Instance.Get("Idle");
+            if (_isEnumerating)
+            {
+                StatusDetail = LocalizationService.Instance.Get("Scanning");
+            }
+            else
+            {
+                StatusDetail = string.Format(LocalizationService.Instance.Get("DevicesFound"), Devices.Count);
+            }
+        }
     }
     
     private void OnDeviceAdded(object? sender, BluetoothDevice device)
@@ -103,9 +141,9 @@ public partial class MainViewModel : ObservableObject, IDisposable
     
     private void OnAudioConnectionStateChanged(object? sender, bool connected)
     {
-        // WPF automatically marshals PropertyChanged events for scalar properties to the UI thread
         IsConnected = connected;
         IsConnecting = false;
+        _streamingState = "";
 
         if (connected)
         {
@@ -122,7 +160,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
     
     private void OnStreamingStateChanged(object? sender, string state)
     {
-        // WPF automatically marshals PropertyChanged events for scalar properties to the UI thread
+        _streamingState = state;
         Status = LocalizationService.Instance.Get(state);
         if (state == "Streaming")
         {
@@ -132,7 +170,6 @@ public partial class MainViewModel : ObservableObject, IDisposable
     
     private void OnAudioError(object? sender, string error)
     {
-        // WPF automatically marshals PropertyChanged events for scalar properties to the UI thread
         ErrorMessage = error;
         IsConnecting = false;
     }
@@ -172,6 +209,8 @@ public partial class MainViewModel : ObservableObject, IDisposable
     
     public void Dispose()
     {
+        LocalizationService.Instance.PropertyChanged -= OnLocalizationChanged;
+        
         _bluetoothService.DeviceAdded -= OnDeviceAdded;
         _bluetoothService.DeviceRemoved -= OnDeviceRemoved;
         _bluetoothService.EnumerationCompleted -= OnEnumerationCompleted;

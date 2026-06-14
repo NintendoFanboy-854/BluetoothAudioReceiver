@@ -3,6 +3,8 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using System.Windows;
+using System.Windows.Automation;
+using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
 using BluetoothAudioReceiver.Models;
@@ -11,9 +13,6 @@ using BluetoothAudioReceiver.ViewModels;
 
 namespace BluetoothAudioReceiver;
 
-/// <summary>
-/// Main window code-behind with custom title bar and system tray integration.
-/// </summary>
 public partial class MainWindow : Window
 {
     private TrayIconService? _trayService;
@@ -25,27 +24,25 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         
-        // Load settings
         _settings = AppSettings.Load();
         
-        // Initialize ViewModel
+        LocalizationService.Instance.CurrentLanguage = _settings.Language;
+        
         _viewModel = new MainViewModel();
         DataContext = _viewModel;
         
-        // Initialize tray icon
         _trayService = new TrayIconService(this, _settings);
         _trayService.ShowWindowRequested += OnShowWindowRequested;
         _trayService.ExitRequested += OnExitRequested;
         _trayService.SettingsRequested += OnSettingsRequested;
         
-        // Subscribe to connection state changes for tray notifications
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
         
-        // Handle minimize to tray
         StateChanged += OnStateChanged;
         Closing += OnClosing;
+
+        ApplyLocalization();
         
-        // Check for --minimized argument
         var args = Environment.GetCommandLineArgs();
         if (args.Contains("--minimized") || _settings.StartMinimized)
         {
@@ -55,6 +52,51 @@ public partial class MainWindow : Window
                 Hide();
             }
         }
+    }
+    
+    private void ApplyLocalization()
+    {
+        var loc = LocalizationService.Instance;
+        
+        Title = loc.Get("AppTitle");
+        TitleBarText.Text = loc.Get("AppTitle");
+        
+        MinimizeButton.ToolTip = loc.Get("Minimized");
+        AutomationProperties.SetName(MinimizeButton, loc.Get("Minimized"));
+        CloseButton.ToolTip = loc.Get("Close");
+        AutomationProperties.SetName(CloseButton, loc.Get("Close"));
+        
+        HelpButton.ToolTip = loc.Get("Help");
+        AutomationProperties.SetName(HelpButton, loc.Get("Help"));
+        SettingsButton.ToolTip = loc.Get("Settings");
+        AutomationProperties.SetName(SettingsButton, loc.Get("Settings"));
+        
+        DevicesHeader.Text = loc.Get("Devices");
+        
+        RefreshButton.ToolTip = loc.Get("Refresh");
+        AutomationProperties.SetName(RefreshButton, loc.Get("Refresh"));
+        
+        EmptyStateText.Text = loc.Get("NoDevicesFound");
+        
+        ConnectButton.Content = loc.Get("Connect");
+        DisconnectButton.Content = loc.Get("Disconnect");
+        
+        RebindSelectedDeviceFallbacks(loc);
+    }
+    
+    private void RebindSelectedDeviceFallbacks(LocalizationService loc)
+    {
+        var nameBinding = new Binding("SelectedDevice.Name")
+        {
+            FallbackValue = loc.Get("NoDeviceSelected")
+        };
+        SelectedDeviceName.SetBinding(TextBlock.TextProperty, nameBinding);
+        
+        var statusBinding = new Binding("SelectedDevice.DisplayStatus")
+        {
+            FallbackValue = loc.Get("SelectFromList")
+        };
+        SelectedDeviceStatus.SetBinding(TextBlock.TextProperty, statusBinding);
     }
     
     #region Custom Title Bar
@@ -78,7 +120,7 @@ public partial class MainWindow : Window
         {
             WindowState = WindowState.Minimized;
             Hide();
-            _trayService?.ShowNotification("Minimiert", "Die App läuft weiter im System Tray.");
+            _trayService?.ShowNotification(LocalizationService.Instance.Get("Minimized"), LocalizationService.Instance.Get("AppRunningInTray"));
         }
         else
         {
@@ -103,10 +145,9 @@ public partial class MainWindow : Window
         {
             if (_viewModel.IsConnected)
             {
-                _trayService.ShowNotification("Verbunden", 
-                    $"Audio-Verbindung zu {_viewModel.SelectedDevice?.Name} hergestellt.");
+                _trayService.ShowNotification(LocalizationService.Instance.Get("Connected"), 
+                    $"{LocalizationService.Instance.Get("AudioConnectionTo")} {_viewModel.SelectedDevice?.Name} {LocalizationService.Instance.Get("Established")}");
                 
-                // Save last device for auto-connect
                 if (_viewModel.SelectedDevice != null)
                 {
                     _settings.LastDeviceId = _viewModel.SelectedDevice.Id;
@@ -136,12 +177,11 @@ public partial class MainWindow : Window
             e.Cancel = true;
             WindowState = WindowState.Minimized;
             Hide();
-            _trayService?.ShowNotification("Minimiert", 
-                "Die App läuft weiter im System Tray.");
+            _trayService?.ShowNotification(LocalizationService.Instance.Get("Minimized"), 
+                LocalizationService.Instance.Get("AppRunningInTray"));
         }
         else
         {
-            // Actually closing - clean up
             _viewModel?.Dispose();
             _trayService?.Dispose();
         }
@@ -188,7 +228,6 @@ public partial class MainWindow : Window
     
     private void ShowSettingsWindow()
     {
-        // Show window if hidden
         if (!IsVisible)
         {
             Show();
@@ -199,15 +238,16 @@ public partial class MainWindow : Window
         if (settingsWindow.ShowDialog() == true)
         {
             _settings = AppSettings.Load();
+            LocalizationService.Instance.CurrentLanguage = _settings.Language;
+            ApplyLocalization();
+            _viewModel?.RefreshLocalization();
+            _trayService?.RefreshContextMenu();
         }
     }
     
     #endregion
 }
 
-/// <summary>
-/// Converter to determine if the Open Connection button should be enabled.
-/// </summary>
 public class CanConnectConverter : IMultiValueConverter
 {
     public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)

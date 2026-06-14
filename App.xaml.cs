@@ -2,16 +2,18 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Windows;
+using BluetoothAudioReceiver.Services;
 
 namespace BluetoothAudioReceiver;
 
 public partial class App : Application
 {
     private static Mutex? _mutex;
+    private static EventWaitHandle? _wakeEvent;
+    private static RegisteredWaitHandle? _wakeWaitHandle;
 
     public App()
     {
-        // Global exception handling
         this.DispatcherUnhandledException += App_DispatcherUnhandledException;
         AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
     }
@@ -25,23 +27,62 @@ public partial class App : Application
 
         if (!createdNew)
         {
-            // App is already running
-            // Optional: Bring existing window to front (requires native calls, skipping for 'Low Overhead' requirement unless asked)
-            MessageBox.Show("Bluetooth Audio Receiver läuft bereits.", "Hinweis", MessageBoxButton.OK, MessageBoxImage.Information);
+            try
+            {
+                using var wakeEvent = EventWaitHandle.OpenExisting("BluetoothAudioReceiver_WakeEvent");
+                wakeEvent.Set();
+            }
+            catch
+            {
+                MessageBox.Show(LocalizationService.Instance.Get("SingleInstanceMessage"),
+                    LocalizationService.Instance.Get("SingleInstanceTitle"),
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
             Shutdown();
             return;
         }
 
+        _wakeEvent = new EventWaitHandle(false, EventResetMode.AutoReset, "BluetoothAudioReceiver_WakeEvent");
+        _wakeWaitHandle = ThreadPool.RegisterWaitForSingleObject(_wakeEvent, OnWakeSignal, null, Timeout.Infinite, false);
+
         base.OnStartup(e);
+    }
+
+    private static void OnWakeSignal(object? state, bool timedOut)
+    {
+        Application.Current.Dispatcher.Invoke(() =>
+        {
+            if (Application.Current.MainWindow != null)
+            {
+                var window = Application.Current.MainWindow;
+                if (window.WindowState == WindowState.Minimized)
+                    window.WindowState = WindowState.Normal;
+                window.Show();
+                window.Activate();
+                window.Topmost = true;
+                window.Topmost = false;
+            }
+        });
+
+        if (_wakeEvent != null)
+            _wakeWaitHandle = ThreadPool.RegisterWaitForSingleObject(_wakeEvent, OnWakeSignal, null, Timeout.Infinite, false);
+    }
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        _wakeWaitHandle?.Unregister(null);
+        _wakeEvent?.Dispose();
+        _mutex?.Dispose();
+        base.OnExit(e);
     }
 
     private void App_DispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
     {
         LogCrash(e.Exception);
-        e.Handled = true; // Prevent immediate termination if possible to show dialog
+        e.Handled = true;
 
         string logPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "BluetoothAudioReceiver", "logs", "crash_log.txt");
-        MessageBox.Show($"An unexpected error occurred. The application will close.\n\nPlease check the log file for details:\n{logPath}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        MessageBox.Show(string.Format(LocalizationService.Instance.Get("CrashMessage"), logPath), LocalizationService.Instance.Get("CrashTitle"), MessageBoxButton.OK, MessageBoxImage.Error);
         Shutdown();
     }
 
@@ -64,7 +105,6 @@ public partial class App : Application
             }
             string logPath = Path.Combine(logDir, "crash_log.txt");
 
-            // Log rotation: if file > 5MB, rotate to .bak
             if (File.Exists(logPath) && new FileInfo(logPath).Length > 5 * 1024 * 1024)
             {
                 string backupPath = Path.Combine(logDir, "crash_log.bak");
@@ -80,7 +120,6 @@ public partial class App : Application
         }
         catch
         {
-            // Fallback if writing fails
         }
     }
 }

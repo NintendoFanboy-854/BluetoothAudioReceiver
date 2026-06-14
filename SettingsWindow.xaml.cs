@@ -7,9 +7,6 @@ using BluetoothAudioReceiver.Services;
 
 namespace BluetoothAudioReceiver;
 
-/// <summary>
-/// Settings window code-behind.
-/// </summary>
 public partial class SettingsWindow : Window
 {
     private readonly AppSettings _settings;
@@ -25,13 +22,10 @@ public partial class SettingsWindow : Window
         _volumeService = new VolumeService();
         _loc = LocalizationService.Instance;
         
-        // Apply current language
         _loc.CurrentLanguage = settings.Language;
         
-        // Sync volume with current system volume
         _settings.Volume = _volumeService.GetVolume();
         
-        // Store original values to detect changes
         _originalSettings = new AppSettings
         {
             Volume = settings.Volume,
@@ -45,47 +39,42 @@ public partial class SettingsWindow : Window
         
         DataContext = _settings;
         
-        // Setup language ComboBox
         LanguageComboBox.ItemsSource = LocalizationService.AvailableLanguages;
         LanguageComboBox.SelectedValue = _settings.Language;
         
-        // Subscribe to volume slider changes for real-time preview
         VolumeSlider.ValueChanged += VolumeSlider_ValueChanged;
         
-        // Apply localized text
         ApplyLocalization();
     }
     
     private void ApplyLocalization()
     {
-        // Title bar
         Title = _loc["Settings"];
+        SettingsTitleBarText.Text = _loc["Settings"];
         
-        // Section headers and labels (these need to be set in code since they use x:Name)
+        SettingsCloseButton.ToolTip = _loc["Close"];
+        AutomationProperties.SetName(SettingsCloseButton, _loc["Close"]);
+        
         VolumeHeader.Text = _loc["Volume"];
         AutostartHeader.Text = _loc["Autostart"];
         BehaviorHeader.Text = _loc["Behavior"];
         LanguageHeader.Text = _loc["Language"];
         
-        // Accessibility names for inputs
         AutomationProperties.SetName(VolumeSlider, _loc["Volume"]);
         AutomationProperties.SetName(LanguageComboBox, _loc["Language"]);
 
-        // Checkboxes
         AutoStartCheckBox.Content = _loc["StartWithWindows"];
         StartMinimizedCheckBox.Content = _loc["StartMinimized"];
         MinimizeToTrayCheckBox.Content = _loc["MinimizeToTray"];
         AutoConnectCheckBox.Content = _loc["AutoConnect"];
         ShowNotificationsCheckBox.Content = _loc["ShowNotifications"];
         
-        // Buttons
         SaveButton.Content = _loc["Save"];
         CancelButton.Content = _loc["Cancel"];
     }
     
     private void VolumeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
-        // Apply volume in real-time as user drags slider
         _volumeService.SetVolume((int)e.NewValue);
     }
     
@@ -109,17 +98,14 @@ public partial class SettingsWindow : Window
     
     private void SaveButton_Click(object sender, RoutedEventArgs e)
     {
-        // Update autostart registry if changed
         if (_settings.AutoStart != _originalSettings.AutoStart || 
             _settings.StartMinimized != _originalSettings.StartMinimized)
         {
             AutoStartService.SetAutoStart(_settings.AutoStart, _settings.StartMinimized);
         }
         
-        // Apply final volume
         _volumeService.SetVolume(_settings.Volume);
         
-        // Save settings to file
         _settings.Save();
         
         _volumeService.Dispose();
@@ -129,13 +115,10 @@ public partial class SettingsWindow : Window
     
     private void CancelButton_Click(object sender, RoutedEventArgs e)
     {
-        // Restore original volume
         _volumeService.SetVolume(_originalSettings.Volume);
         
-        // Restore original language
         _loc.CurrentLanguage = _originalSettings.Language;
         
-        // Restore original values
         _settings.Volume = _originalSettings.Volume;
         _settings.AutoStart = _originalSettings.AutoStart;
         _settings.StartMinimized = _originalSettings.StartMinimized;
