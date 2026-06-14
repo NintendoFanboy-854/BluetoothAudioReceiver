@@ -11,7 +11,6 @@ public partial class SettingsWindow : Window
 {
     private readonly AppSettings _settings;
     private readonly AppSettings _originalSettings;
-    private readonly VolumeService _volumeService;
     private readonly LocalizationService _loc;
     
     public SettingsWindow(AppSettings settings)
@@ -19,16 +18,12 @@ public partial class SettingsWindow : Window
         InitializeComponent();
         
         _settings = settings;
-        _volumeService = new VolumeService();
         _loc = LocalizationService.Instance;
         
         _loc.CurrentLanguage = settings.Language;
         
-        _settings.Volume = _volumeService.GetVolume();
-        
         _originalSettings = new AppSettings
         {
-            Volume = settings.Volume,
             AutoStart = settings.AutoStart,
             StartMinimized = settings.StartMinimized,
             MinimizeToTray = settings.MinimizeToTray,
@@ -42,8 +37,6 @@ public partial class SettingsWindow : Window
         LanguageComboBox.ItemsSource = LocalizationService.AvailableLanguages;
         LanguageComboBox.SelectedValue = _settings.Language;
         
-        VolumeSlider.ValueChanged += VolumeSlider_ValueChanged;
-        
         ApplyLocalization();
     }
     
@@ -55,12 +48,10 @@ public partial class SettingsWindow : Window
         SettingsCloseButton.ToolTip = _loc["Close"];
         AutomationProperties.SetName(SettingsCloseButton, _loc["Close"]);
         
-        VolumeHeader.Text = _loc["Volume"];
         AutostartHeader.Text = _loc["Autostart"];
         BehaviorHeader.Text = _loc["Behavior"];
         LanguageHeader.Text = _loc["Language"];
         
-        AutomationProperties.SetName(VolumeSlider, _loc["Volume"]);
         AutomationProperties.SetName(LanguageComboBox, _loc["Language"]);
 
         AutoStartCheckBox.Content = _loc["StartWithWindows"];
@@ -71,11 +62,6 @@ public partial class SettingsWindow : Window
         
         SaveButton.Content = _loc["Save"];
         CancelButton.Content = _loc["Cancel"];
-    }
-    
-    private void VolumeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-    {
-        _volumeService.SetVolume((int)e.NewValue);
     }
     
     private void LanguageComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -104,22 +90,16 @@ public partial class SettingsWindow : Window
             AutoStartService.SetAutoStart(_settings.AutoStart, _settings.StartMinimized);
         }
         
-        _volumeService.SetVolume(_settings.Volume);
-        
         _settings.Save();
         
-        _volumeService.Dispose();
         DialogResult = true;
         Close();
     }
     
     private void CancelButton_Click(object sender, RoutedEventArgs e)
     {
-        _volumeService.SetVolume(_originalSettings.Volume);
-        
         _loc.CurrentLanguage = _originalSettings.Language;
         
-        _settings.Volume = _originalSettings.Volume;
         _settings.AutoStart = _originalSettings.AutoStart;
         _settings.StartMinimized = _originalSettings.StartMinimized;
         _settings.MinimizeToTray = _originalSettings.MinimizeToTray;
@@ -127,7 +107,6 @@ public partial class SettingsWindow : Window
         _settings.ShowNotifications = _originalSettings.ShowNotifications;
         _settings.Language = _originalSettings.Language;
         
-        _volumeService.Dispose();
         DialogResult = false;
         Close();
     }

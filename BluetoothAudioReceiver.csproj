@@ -11,9 +11,9 @@
     <AssemblyName>BluetoothAudioReceiver</AssemblyName>
     <RootNamespace>BluetoothAudioReceiver</RootNamespace>
     <PublishSingleFile>true</PublishSingleFile>
-    <SelfContained>true</SelfContained>
+    <SelfContained>false</SelfContained>
+    <SatelliteResourceLanguages>en;zh-Hans</SatelliteResourceLanguages>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
   </PropertyGroup>
 
   <ItemGroup>
