@@ -10,11 +10,16 @@
     <Product>Bluetooth Audio Receiver</Product>
     <AssemblyName>BluetoothAudioReceiver</AssemblyName>
     <RootNamespace>BluetoothAudioReceiver</RootNamespace>
+    <ApplicationIcon>logo.ico</ApplicationIcon>
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>false</SelfContained>
     <SatelliteResourceLanguages>en;zh-Hans</SatelliteResourceLanguages>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="logo.png" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />

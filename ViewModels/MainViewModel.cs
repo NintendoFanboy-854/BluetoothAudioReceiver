@@ -143,9 +143,10 @@ public partial class MainViewModel : ObservableObject, IDisposable
         if (_settings.AutoConnect)
         {
             var targetId = _settings.DefaultDeviceId ?? _settings.LastDeviceId;
+            BluetoothDevice? target = null;
+
             if (targetId != null)
             {
-                BluetoothDevice? target = null;
                 foreach (var d in Devices)
                 {
                     if (d.Id == targetId)
@@ -154,14 +155,27 @@ public partial class MainViewModel : ObservableObject, IDisposable
                         break;
                     }
                 }
-                if (target != null)
+            }
+
+            if (target == null)
+            {
+                foreach (var d in Devices)
                 {
-                    _ = AutoConnectToDevice(target);
+                    if (d.IsConnected)
+                    {
+                        target = d;
+                        break;
+                    }
                 }
-                else
-                {
-                    _pendingAutoConnectId = targetId;
-                }
+            }
+
+            if (target != null)
+            {
+                _ = AutoConnectToDevice(target);
+            }
+            else if (targetId != null)
+            {
+                _pendingAutoConnectId = targetId;
             }
         }
     }
@@ -287,6 +301,7 @@ public partial class MainViewModel : ObservableObject, IDisposable
         {
             _settings.DefaultDeviceId = SelectedDevice.Id;
             _settings.DefaultDeviceName = SelectedDevice.Name;
+            _settings.AutoConnect = true;
         }
         _settings.Save();
         OnPropertyChanged(nameof(IsDefaultDevice));

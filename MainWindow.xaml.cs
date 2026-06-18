@@ -23,6 +23,9 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+
+        Icon = new System.Windows.Media.Imaging.BitmapImage(
+            new Uri("pack://application:,,,/logo.png"));
         
         _settings = AppSettings.Load();
         

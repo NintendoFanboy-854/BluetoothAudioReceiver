@@ -67,19 +67,9 @@ public class TrayIconService : IDisposable
     
     private Icon CreateIcon()
     {
-        using var bitmap = new Bitmap(32, 32);
-        using var g = Graphics.FromImage(bitmap);
-        
-        using var blueBrush = new SolidBrush(Color.FromArgb(0, 120, 212));
-        g.FillEllipse(blueBrush, 2, 2, 28, 28);
-        
-        using var whitePen = new Pen(Color.White, 2);
-        g.DrawLine(whitePen, 16, 6, 16, 26);
-        g.DrawLine(whitePen, 16, 6, 22, 12);
-        g.DrawLine(whitePen, 22, 12, 10, 20);
-        g.DrawLine(whitePen, 16, 26, 22, 20);
-        g.DrawLine(whitePen, 22, 20, 10, 12);
-        
+        var uri = new Uri("pack://application:,,,/logo.png");
+        var streamInfo = System.Windows.Application.GetResourceStream(uri);
+        using var bitmap = new Bitmap(streamInfo.Stream);
         return Icon.FromHandle(bitmap.GetHicon());
     }
     
